@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session
+from flask import Flask, render_template, request, redirect, session, url_for
 import sqlite3
 
 app = Flask(__name__)
@@ -36,6 +36,11 @@ def login():
     else:
         return render_template('login.html')
 
+@app.route('/game/complete')
+def game_complete():
+    session.pop('email', None)
+    return "Congratulations! You have completed the game."
+
 @app.route('/game/<int:step>', methods=['GET', 'POST'])
 def game(step):
     if 'email' not in session:
@@ -65,17 +70,22 @@ def game(step):
             
             # Check if the game is complete
             if step == len(game_steps):
-                session.pop('email', None)
-                return "Congratulations! You have completed the game."
+                return redirect(url_for('game_complete'))
             else:
                 next_question = game_steps[step]['file']
                 return render_template(next_question)
         else:
-            return f"Sorry, your answer '{answer}' is incorrect. Please try again with '{game_steps[step - 2]['answer']}'."
+            question_file = game_steps[step - 1]['file']
+            with open(question_file, 'r') as f:
+              data = f.read().split('\n')
+              question = data[0].strip()
+        
+            correct_answer = game_steps[step - 1]['answer']
+            return render_template('question.html', step=step, question=question, correct_answer=correct_answer, message="Sorry, your answer is incorrect. Please try again.")
+
     else:
         question_file = game_steps[step - 1]['file']
         return render_template(question_file)
-
 
 if __name__ == '__main__':
     app.run(debug=True)
